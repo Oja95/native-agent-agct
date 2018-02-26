@@ -1,3 +1,0 @@
-/home/tiit/CLionProjects/native-agent-agct/cmake-build-debug/CMakeFiles/rebuild_cache.dir
-/home/tiit/CLionProjects/native-agent-agct/cmake-build-debug/CMakeFiles/edit_cache.dir
-/home/tiit/CLionProjects/native-agent-agct/cmake-build-debug/CMakeFiles/native_agent_agct.dir

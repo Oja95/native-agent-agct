@@ -1,1 +1,0 @@
-/usr/bin/c++ -fPIC -g  -shared -Wl,-soname,libnative_agent_agct.so -o libnative_agent_agct.so CMakeFiles/native_agent_agct.dir/library.cpp.o 
