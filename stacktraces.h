@@ -88,26 +88,4 @@ public:
     }
 };
 
-// Wrapper to hold reference to AsyncGetCallTrace function
-class Asgct {
-public:
-    static void SetAsgct(ASGCTType asgct) {
-      asgct_ = asgct;
-    }
-
-    // AsyncGetCallTrace function, to be dlsym'd.
-    static ASGCTType GetAsgct() {
-      return asgct_;
-    }
-
-private:
-    static ASGCTType asgct_;
-
-    Asgct();
-
-    Asgct(const Asgct &);
-
-    void operator=(const Asgct &);
-};
-
 #endif // STACKTRACES_H

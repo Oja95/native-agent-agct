@@ -13,6 +13,8 @@ typedef struct {
     jboolean vm_is_started;
     /* Data access Lock */
     jrawMonitorID lock;
+    /* Ascgt function */
+    ASGCTType ascgt;
 } GlobalAgentData;
 
 static GlobalAgentData *gdata;

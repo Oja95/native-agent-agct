@@ -67,21 +67,18 @@ jint init(JavaVM *jvm, char *options) {
 //  error = jvmti->CreateRawMonitor("agent data", &(gdata->lock));
 //  check_jvmti_error(jvmti, error, "Cannot create raw monitor");
 
-
-  // TODO: Figure out how to obtain the AsyncGetCallTrace function reference
-//  Asgct::SetAsgct(Accessors::GetJvmFunction("AsyncGetCallTrace"));
-
   gdata = new GlobalAgentData();
   gdata->jvmti = jvmti;
-
+  gdata->ascgt = Accessors::GetJvmFunction("AsyncGetCallTrace");
 
   std::cout << "Successfully loaded agent!" << std::endl;
   return JNI_OK;
 }
 
 
-static void JNICALL callbackVMObjectAlloc(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread, jobject object, jclass object_klass,
-                           jlong size) {
+static void JNICALL
+callbackVMObjectAlloc(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread, jobject object, jclass object_klass,
+                      jlong size) {
 
   // Getting the name of the class loaded: https://stackoverflow.com/a/12730789
   // First get the class object
@@ -98,14 +95,15 @@ static void JNICALL callbackVMObjectAlloc(jvmtiEnv *jvmti_env, JNIEnv *jni_env, 
   jstring strObj = (jstring) jni_env->CallObjectMethod(clsObj, mid);
 
 // Now get the c string from the java jstring object
-  const char* str = jni_env->GetStringUTFChars(strObj, nullptr);
+  const char *str = jni_env->GetStringUTFChars(strObj, nullptr);
 
   std::cout << "VM Object allocated callback! Loaded class: " << str << std::endl;
   jni_env->ReleaseStringUTFChars(strObj, str);
 }
 
-static void JNICALL callbackException(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread, jmethodID method, jlocation location,
-                       jobject exception, jmethodID catch_method, jlocation catch_location) {
+static void JNICALL
+callbackException(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread, jmethodID method, jlocation location,
+                  jobject exception, jmethodID catch_method, jlocation catch_location) {
   std::cout << "Exception callback!" << std::endl;
 }
 
@@ -135,9 +133,9 @@ static void JNICALL callbackVMDeath(jvmtiEnv *jvmti_env, JNIEnv *jni_env) {
 static void JNICALL callbackVMInit(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread) {
   std::cout << "VM Init callback!" << std::endl;
 //  ASGCTType asgct = Asgct::GetAsgct();
+  ASGCTType asgct = gdata->ascgt;
 
   // Call asgct once for testing purposes.
-
   // TODO: Extract max frames as constant.
   JVMPI_CallFrame frames[2048];
   JVMPI_CallTrace trace;
@@ -145,8 +143,10 @@ static void JNICALL callbackVMInit(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread
 
   if (jni_env != nullptr) {
     trace.env_id = jni_env;
-//    (*asgct)(&trace, 2048, context);
-//    (*asgct)(&trace, 2048, nullptr);
+
+    std::cout << "Calling AsyncGetCallTrace" << std::endl;
+    (*asgct)(&trace, 2048, nullptr);
+    std::cout << "Num frames received: " << trace.num_frames << std::endl;
   }
 }
 
