@@ -30,5 +30,10 @@ static void JNICALL callbackVMDeath(jvmtiEnv *jvmti_env, JNIEnv *jni_env);
 static void JNICALL callbackVMObjectAlloc(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread, jobject object, jclass object_klass,
                            jlong size);
 
+static void JNICALL callbackOnClassLoad(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread, jclass klass);
+
+static void JNICALL callbackOnThreadEnd(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread);
+
+static void JNICALL callbackOnThreadStart(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread);
 
 #endif //NATIVE_AGENT_AGCT_MAIN_OWN_H

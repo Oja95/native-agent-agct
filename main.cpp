@@ -50,11 +50,21 @@ jint init(JavaVM *jvm, char *options) {
   check_jvmti_error(jvmti, error, "Cannot set event notification");
   error = jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_OBJECT_ALLOC, (jthread) NULL);
   check_jvmti_error(jvmti, error, "Cannot set event notification");
+  error = jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_LOAD, (jthread) NULL);
+  check_jvmti_error(jvmti, error, "Cannot set event notification");
+  error = jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_START, (jthread) NULL);
+  check_jvmti_error(jvmti, error, "Cannot set event notification");
+  error = jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_END, (jthread) NULL);
+  check_jvmti_error(jvmti, error, "Cannot set event notification");
 
   jvmtiEventCallbacks callbacks = jvmtiEventCallbacks();
-  callbacks.VMInit = &callbackVMInit; /* JVMTI_EVENT_VM_INIT */
-  callbacks.VMDeath = &callbackVMDeath; /* JVMTI_EVENT_VM_DEATH */
-  callbacks.VMObjectAlloc = &callbackVMObjectAlloc;/* JVMTI_EVENT_VM_OBJECT_ALLOC */
+  callbacks.VMInit = &callbackVMInit;
+  callbacks.VMDeath = &callbackVMDeath;
+  callbacks.VMObjectAlloc = &callbackVMObjectAlloc;
+  callbacks.ThreadStart = &callbackOnThreadStart;
+  callbacks.ThreadEnd = &callbackOnThreadEnd;
+  callbacks.ClassLoad = &callbackOnClassLoad;
+
   error = jvmti->SetEventCallbacks(&callbacks, (jint) sizeof(callbacks));
   check_jvmti_error(jvmti, error, "Cannot set JVMTI callbacks");
 
@@ -71,6 +81,19 @@ jint init(JavaVM *jvm, char *options) {
 
   std::cout << "Successfully loaded agent!" << std::endl;
   return JNI_OK;
+}
+
+static void JNICALL callbackOnClassLoad(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread, jclass klass) {
+  // Must be here since the AsyncGetCallTrace documentation says so:
+  // CLASS_LOAD events have been enabled since agent startup. The enabled event will cause the jmethodIDs to be allocated at class load time.
+}
+
+static void JNICALL callbackOnThreadEnd(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread) {
+  // TODO: Store reference to thread
+}
+
+static void JNICALL callbackOnThreadStart(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread) {
+  // TODO: Remove thread reference
 }
 
 
@@ -124,7 +147,6 @@ static void JNICALL callbackVMDeath(jvmtiEnv *jvmti_env, JNIEnv *jni_env) {
 
 static void JNICALL callbackVMInit(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread) {
   std::cout << "VM Init callback!" << std::endl;
-//  ASGCTType asgct = Asgct::GetAsgct();
   ASGCTType asgct = gdata->ascgt;
 
   // Call asgct once for testing purposes.
