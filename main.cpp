@@ -1,28 +1,5 @@
 #include "main.h"
 
-JNIEXPORT jint JNICALL Agent_OnLoad(JavaVM *jvm, char *options, void *reserved) {
-  std::cout << "Starting to load agent!" << std::endl;
-  return init(jvm, options);
-}
-
-JNIEXPORT void JNICALL Agent_OnUnload(JavaVM *vm) {
-  delete (gdata);
-}
-
-//static void enter_critical_section(jvmtiEnv *jvmti) {
-//  jvmtiError error;
-//  error = jvmti->RawMonitorEnter(gdata->lock);
-//  check_jvmti_error(jvmti, error, "Cannot enter with raw monitor");
-//}
-//
-///* Exit a critical section by doing a JVMTI Raw Monitor Exit */
-//static void exit_critical_section(jvmtiEnv *jvmti) {
-//  jvmtiError error;
-//  error = jvmti->RawMonitorExit(gdata->lock);
-//  check_jvmti_error(jvmti, error, "Cannot exit with raw monitor");
-//}
-
-
 jint init(JavaVM *jvm, char *options) {
 
   jvmtiEnv *jvmti = nullptr;
@@ -68,19 +45,22 @@ jint init(JavaVM *jvm, char *options) {
   error = jvmti->SetEventCallbacks(&callbacks, (jint) sizeof(callbacks));
   check_jvmti_error(jvmti, error, "Cannot set JVMTI callbacks");
 
-
-  /* Here we create a raw monitor for our use in this agent to protect critical sections of code.
-  */
-  // TODO: Raw monitor creation fails with segfault for some reason, figure out why.
-//  error = jvmti->CreateRawMonitor("agent data", &(gdata->lock));
-//  check_jvmti_error(jvmti, error, "Cannot create raw monitor");
-
   gdata = new GlobalAgentData();
   gdata->jvmti = jvmti;
   gdata->ascgt = Accessors::GetJvmFunction("AsyncGetCallTrace");
 
   std::cout << "Successfully loaded agent!" << std::endl;
   return JNI_OK;
+}
+
+
+JNIEXPORT jint JNICALL Agent_OnLoad(JavaVM *jvm, char *options, void *reserved) {
+  std::cout << "Starting to load agent!" << std::endl;
+  return init(jvm, options);
+}
+
+JNIEXPORT void JNICALL Agent_OnUnload(JavaVM *vm) {
+  delete (gdata);
 }
 
 static void JNICALL callbackOnClassLoad(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread, jclass klass) {
@@ -113,7 +93,7 @@ callbackVMObjectAlloc(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread, jobj
   mid = jni_env->GetMethodID(object_klass, "getName", "()Ljava/lang/String;");
 
 // Call the getName() to get a jstring object back
-  jstring strObj = (jstring) jni_env->CallObjectMethod(clsObj, mid);
+  auto strObj = (jstring) jni_env->CallObjectMethod(clsObj, mid);
 
 // Now get the c string from the java jstring object
   const char *str = jni_env->GetStringUTFChars(strObj, nullptr);
@@ -123,26 +103,8 @@ callbackVMObjectAlloc(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread, jobj
 }
 
 static void JNICALL callbackVMDeath(jvmtiEnv *jvmti_env, JNIEnv *jni_env) {
-//  enter_critical_section(jvmti_env);
-  {
     /* The VM has died. */
     std::cout << "VM Death callback!" << std::endl;
-
-    /* The critical section here is important to hold back the VM death
-     *    until all other callbacks have completed.
-     */
-
-    /* Since this critical section could be holding up other threads
-     *   in other event callbacks, we need to indicate that the VM is
-     *   dead so that the other callbacks can short circuit their work.
-     *   We don't expect any further events after VmDeath but we do need
-     *   to be careful that existing threads might be in our own agent
-     *   callback code.
-     */
-
-  }
-//  exit_critical_section(jvmti_env);
-
 }
 
 static void JNICALL callbackVMInit(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread) {
