@@ -37,7 +37,6 @@ jint init(JavaVM *jvm, char *options) {
   capa.can_signal_thread = 1;
   capa.can_get_owned_monitor_info = 1;
   capa.can_generate_method_entry_events = 1;
-  capa.can_generate_exception_events = 1;
   capa.can_generate_vm_object_alloc_events = 1;
   capa.can_tag_objects = 1;
 
@@ -55,7 +54,6 @@ jint init(JavaVM *jvm, char *options) {
   jvmtiEventCallbacks callbacks = jvmtiEventCallbacks();
   callbacks.VMInit = &callbackVMInit; /* JVMTI_EVENT_VM_INIT */
   callbacks.VMDeath = &callbackVMDeath; /* JVMTI_EVENT_VM_DEATH */
-  callbacks.Exception = &callbackException;/* JVMTI_EVENT_EXCEPTION */
   callbacks.VMObjectAlloc = &callbackVMObjectAlloc;/* JVMTI_EVENT_VM_OBJECT_ALLOC */
   error = jvmti->SetEventCallbacks(&callbacks, (jint) sizeof(callbacks));
   check_jvmti_error(jvmti, error, "Cannot set JVMTI callbacks");
@@ -99,12 +97,6 @@ callbackVMObjectAlloc(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread, jobj
 
   std::cout << "VM Object allocated callback! Loaded class: " << str << std::endl;
   jni_env->ReleaseStringUTFChars(strObj, str);
-}
-
-static void JNICALL
-callbackException(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread, jmethodID method, jlocation location,
-                  jobject exception, jmethodID catch_method, jlocation catch_location) {
-  std::cout << "Exception callback!" << std::endl;
 }
 
 static void JNICALL callbackVMDeath(jvmtiEnv *jvmti_env, JNIEnv *jni_env) {

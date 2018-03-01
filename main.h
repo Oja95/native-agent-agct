@@ -27,9 +27,6 @@ static void JNICALL callbackVMInit(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread
 
 static void JNICALL callbackVMDeath(jvmtiEnv *jvmti_env, JNIEnv *jni_env);
 
-static void JNICALL callbackException(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread, jmethodID method, jlocation location,
-                       jobject exception, jmethodID catch_method, jlocation catch_location);
-
 static void JNICALL callbackVMObjectAlloc(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread, jobject object, jclass object_klass,
                            jlong size);
 
