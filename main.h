@@ -3,7 +3,7 @@
 
 #include "jvmti.h"
 #include "stacktraces.h"
-
+#include "thread_map.h"
 #include <iostream>
 #include <cstring>
 
@@ -30,9 +30,6 @@ void check_jvmti_error(jvmtiEnv *jvmti, jvmtiError errnum, const std::string &er
 static void JNICALL callbackVMInit(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread);
 
 static void JNICALL callbackVMDeath(jvmtiEnv *jvmti_env, JNIEnv *jni_env);
-
-static void JNICALL callbackVMObjectAlloc(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread, jobject object, jclass object_klass,
-                           jlong size);
 
 static void JNICALL callbackOnClassLoad(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread, jclass klass);
 

@@ -45,7 +45,6 @@ jint init(JavaVM *jvm, char *options) {
   jvmtiEventCallbacks callbacks = jvmtiEventCallbacks();
   callbacks.VMInit = &callbackVMInit;
   callbacks.VMDeath = &callbackVMDeath;
-  callbacks.VMObjectAlloc = &callbackVMObjectAlloc;
   callbacks.ThreadStart = &callbackOnThreadStart;
   callbacks.ThreadEnd = &callbackOnThreadEnd;
   callbacks.ClassLoad = &callbackOnClassLoad;
@@ -94,32 +93,6 @@ static void JNICALL callbackOnThreadStart(jvmtiEnv *jvmti_env, JNIEnv *jni_env, 
     threadMap.put(jni_env, threadInfo.name);
   }
   pthread_sigmask(SIG_UNBLOCK, &prof_signal_mask, NULL);
-}
-
-
-static void JNICALL
-callbackVMObjectAlloc(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread, jobject object, jclass object_klass,
-                      jlong size) {
-
-//  // Getting the name of the class loaded: https://stackoverflow.com/a/12730789
-//  // First get the class object
-//  jmethodID mid = jni_env->GetMethodID(object_klass, "getClass", "()Ljava/lang/Class;");
-//  jobject clsObj = jni_env->CallObjectMethod(object, mid);
-//
-//// Now get the class object's class descriptor
-//  object_klass = jni_env->GetObjectClass(clsObj);
-//
-//// Find the getName() method on the class object
-//  mid = jni_env->GetMethodID(object_klass, "getName", "()Ljava/lang/String;");
-//
-//// Call the getName() to get a jstring object back
-//  auto strObj = (jstring) jni_env->CallObjectMethod(clsObj, mid);
-//
-//// Now get the c string from the java jstring object
-//  const char *str = jni_env->GetStringUTFChars(strObj, nullptr);
-//
-//  std::cout << "VM Object allocated callback! Loaded class: " << str << std::endl;
-//  jni_env->ReleaseStringUTFChars(strObj, str);
 }
 
 static void JNICALL callbackVMDeath(jvmtiEnv *jvmti_env, JNIEnv *jni_env) {
