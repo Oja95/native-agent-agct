@@ -3,6 +3,7 @@
 
 #include "jvmti.h"
 #include "stacktraces.h"
+
 #include <iostream>
 #include <cstring>
 
@@ -17,9 +18,12 @@ typedef struct {
     ASGCTType ascgt;
 } GlobalAgentData;
 
+static const int MAX_FRAMES_TO_CAPTURE = 2048;
 static GlobalAgentData *gdata;
 
 jint init(JavaVM *jvm, char *options);
+
+JVMPI_CallTrace callAsgct(JNIEnv *jni_env/*, void* ucontext*/) ;
 
 void check_jvmti_error(jvmtiEnv *jvmti, jvmtiError errnum, const std::string &error_message);
 

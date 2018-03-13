@@ -1,5 +1,9 @@
 #include "main.h"
 
+
+static sigset_t prof_signal_mask;
+static ThreadMap threadMap;
+
 jint init(JavaVM *jvm, char *options) {
 
   jvmtiEnv *jvmti = nullptr;
@@ -33,6 +37,10 @@ jint init(JavaVM *jvm, char *options) {
   check_jvmti_error(jvmti, error, "Cannot set event notification");
   error = jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_END, (jthread) NULL);
   check_jvmti_error(jvmti, error, "Cannot set event notification");
+
+
+  sigemptyset(&prof_signal_mask);
+  sigaddset(&prof_signal_mask, SIGALRM);
 
   jvmtiEventCallbacks callbacks = jvmtiEventCallbacks();
   callbacks.VMInit = &callbackVMInit;
@@ -69,11 +77,23 @@ static void JNICALL callbackOnClassLoad(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jt
 }
 
 static void JNICALL callbackOnThreadEnd(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread) {
-  // TODO: Store reference to thread
+  pthread_sigmask(SIG_BLOCK, &prof_signal_mask, NULL);
+  threadMap.remove(jni_env);
+
 }
 
 static void JNICALL callbackOnThreadStart(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread) {
-  // TODO: Remove thread reference
+  jvmtiThreadInfo threadInfo{};
+  jvmtiPhase jvmtiPhase;
+  jvmtiError phase = jvmti_env->GetPhase(&jvmtiPhase);
+  if (jvmtiPhase != JVMTI_PHASE_LIVE) {
+    std::cout << "JVMTI phase: " << jvmtiPhase << " Cant get thread info!" << std::endl;
+  } else {
+    jvmtiError info = jvmti_env->GetThreadInfo(thread, &threadInfo);
+    std::cout << "GetThreadInfo error code : " << info  << ". New thread started: " << threadInfo.name << std::endl;
+    threadMap.put(jni_env, threadInfo.name);
+  }
+  pthread_sigmask(SIG_UNBLOCK, &prof_signal_mask, NULL);
 }
 
 
@@ -81,49 +101,40 @@ static void JNICALL
 callbackVMObjectAlloc(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread, jobject object, jclass object_klass,
                       jlong size) {
 
-  // Getting the name of the class loaded: https://stackoverflow.com/a/12730789
-  // First get the class object
-  jmethodID mid = jni_env->GetMethodID(object_klass, "getClass", "()Ljava/lang/Class;");
-  jobject clsObj = jni_env->CallObjectMethod(object, mid);
-
-// Now get the class object's class descriptor
-  object_klass = jni_env->GetObjectClass(clsObj);
-
-// Find the getName() method on the class object
-  mid = jni_env->GetMethodID(object_klass, "getName", "()Ljava/lang/String;");
-
-// Call the getName() to get a jstring object back
-  auto strObj = (jstring) jni_env->CallObjectMethod(clsObj, mid);
-
-// Now get the c string from the java jstring object
-  const char *str = jni_env->GetStringUTFChars(strObj, nullptr);
-
-  std::cout << "VM Object allocated callback! Loaded class: " << str << std::endl;
-  jni_env->ReleaseStringUTFChars(strObj, str);
+//  // Getting the name of the class loaded: https://stackoverflow.com/a/12730789
+//  // First get the class object
+//  jmethodID mid = jni_env->GetMethodID(object_klass, "getClass", "()Ljava/lang/Class;");
+//  jobject clsObj = jni_env->CallObjectMethod(object, mid);
+//
+//// Now get the class object's class descriptor
+//  object_klass = jni_env->GetObjectClass(clsObj);
+//
+//// Find the getName() method on the class object
+//  mid = jni_env->GetMethodID(object_klass, "getName", "()Ljava/lang/String;");
+//
+//// Call the getName() to get a jstring object back
+//  auto strObj = (jstring) jni_env->CallObjectMethod(clsObj, mid);
+//
+//// Now get the c string from the java jstring object
+//  const char *str = jni_env->GetStringUTFChars(strObj, nullptr);
+//
+//  std::cout << "VM Object allocated callback! Loaded class: " << str << std::endl;
+//  jni_env->ReleaseStringUTFChars(strObj, str);
 }
 
 static void JNICALL callbackVMDeath(jvmtiEnv *jvmti_env, JNIEnv *jni_env) {
-    /* The VM has died. */
-    std::cout << "VM Death callback!" << std::endl;
+  /* The VM has died. */
+  std::cout << "VM Death callback!" << std::endl;
 }
 
 static void JNICALL callbackVMInit(jvmtiEnv *jvmti_env, JNIEnv *jni_env, jthread thread) {
   std::cout << "VM Init callback!" << std::endl;
-  ASGCTType asgct = gdata->ascgt;
-
-  // Call asgct once for testing purposes.
-  // TODO: Extract max frames as constant.
-  JVMPI_CallFrame frames[2048];
-  JVMPI_CallTrace trace;
-  trace.frames = frames;
-
-  if (jni_env != nullptr) {
-    trace.env_id = jni_env;
-
-    std::cout << "Calling AsyncGetCallTrace" << std::endl;
-    (*asgct)(&trace, 2048, nullptr);
-    std::cout << "Num frames received: " << trace.num_frames << std::endl;
+  int x = 1000;
+  while (x--) {
+    std::cout << "Called ascgt " << x << std::endl;
+    callAsgct(jni_env);
   }
+
 }
 
 
@@ -133,5 +144,22 @@ void check_jvmti_error(jvmtiEnv *jvmti, jvmtiError errnum, const std::string &er
     jvmti->GetErrorName(errnum, &error_name);
     std::cerr << error_name << " " << error_message << std::endl;
     exit(1);
+  }
+}
+
+JVMPI_CallTrace callAsgct(JNIEnv *jni_env/*, void* ucontext*/) {
+  ASGCTType asgct = gdata->ascgt;
+
+  // Call asgct once for testing purposes.
+  JVMPI_CallFrame frames[MAX_FRAMES_TO_CAPTURE];
+  JVMPI_CallTrace trace{};
+  trace.frames = frames;
+
+  if (jni_env != nullptr) {
+    trace.env_id = jni_env;
+
+    std::cout << "Calling AsyncGetCallTrace" << std::endl;
+    (*asgct)(&trace, MAX_FRAMES_TO_CAPTURE, nullptr);
+    std::cout << "Num frames received: " << trace.num_frames << std::endl;
   }
 }
